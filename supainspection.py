@@ -26,15 +26,17 @@ if login_button:
         st.error("Veuillez entrer un email valide.")
     else:
         try:
-            # Rechercher l'utilisateur
-            response = supabase.table("users").select("*").eq("email", email).execute()
-            user = response.data
-
-            if user:
-                st.session_state["user_id"] = user[0]["id"]
-                st.success(f"Bienvenue {email} !")
+            # Rechercher l'utilisateur avec une recherche insensible à la casse
+            response = supabase.table("users").select("*").ilike("email", email).execute()
+            if response.error:
+                st.error(f"Erreur lors de la recherche de l'utilisateur : {response.error.message}")
             else:
-                st.error("Utilisateur non trouvé.")
+                user = response.data
+                if user:
+                    st.session_state["user_id"] = user[0]["id"]
+                    st.success(f"Bienvenue {email} !")
+                else:
+                    st.error("Utilisateur non trouvé.")
         except Exception as e:
             st.error(f"Erreur lors de la recherche de l'utilisateur : {e}")
 
@@ -46,46 +48,53 @@ if "user_id" in st.session_state:
     if st.button("Démarrer l'inspection"):
         # Récupérer les checkpoints associés
         response = supabase.table("checkpoints").select("*").eq("name", selected_checklist).execute()
-        checkpoints = response.data
-
-        if checkpoints:
-            # Initialiser l'inspection
-            inspection = supabase.table("inspections").insert({
-                "user_id": st.session_state["user_id"],
-                "results": [{"checkpoint_id": cp["id"], "status": "Non évalué"} for cp in checkpoints],
-                "status": "in_progress",
-                "progress": 0
-            }).execute()
-
-            if inspection.status_code == 201:
-                st.success("Inspection démarrée avec succès !")
-                st.session_state["inspection_id"] = inspection.data[0]["id"]
+        if response.error:
+            st.error(f"Erreur lors de la récupération des checkpoints : {response.error.message}")
         else:
-            st.error("Aucun checkpoint trouvé pour cette checklist.")
+            checkpoints = response.data
+            if checkpoints:
+                # Initialiser l'inspection
+                inspection = supabase.table("inspections").insert({
+                    "user_id": st.session_state["user_id"],
+                    "results": [{"checkpoint_id": cp["id"], "status": "Non évalué"} for cp in checkpoints],
+                    "status": "in_progress",
+                    "progress": 0
+                }).execute()
+
+                if inspection.error:
+                    st.error(f"Erreur lors de l'initialisation de l'inspection : {inspection.error.message}")
+                else:
+                    st.success("Inspection démarrée avec succès !")
+                    st.session_state["inspection_id"] = inspection.data[0]["id"]
+            else:
+                st.error("Aucun checkpoint trouvé pour cette checklist.")
 
 if "inspection_id" in st.session_state:
     # Récupérer les résultats actuels de l'inspection
     response = supabase.table("inspections").select("*").eq("id", st.session_state["inspection_id"]).execute()
-    inspection = response.data[0]
-    results = inspection["results"]
+    if response.error:
+        st.error(f"Erreur lors de la récupération des résultats de l'inspection : {response.error.message}")
+    else:
+        inspection = response.data[0]
+        results = inspection["results"]
 
-    # Grouper les checkpoints par zone
-    for zone in set(cp["zone"] for cp in results):
-        st.header(f"Zone : {zone}")
-        for cp in [cp for cp in results if cp["zone"] == zone]:
-            st.subheader(cp["points"])
-            status = st.radio(
-                f"Évaluation : {cp['points']}",
-                ["Non évalué", "Conforme", "Non conforme"],
-                key=f"status_{cp['checkpoint_id']}"
-            )
-            comment = st.text_area(
-                f"Commentaires ({cp['points']})",
-                key=f"comment_{cp['checkpoint_id']}"
-            )
-            photos = st.file_uploader(
-                f"Ajouter des photos ({cp['points']})", accept_multiple_files=True, key=f"photos_{cp['checkpoint_id']}"
-            )
+        # Grouper les checkpoints par zone
+        for zone in set(cp["zone"] for cp in results):
+            st.header(f"Zone : {zone}")
+            for cp in [cp for cp in results if cp["zone"] == zone]:
+                st.subheader(cp["points"])
+                status = st.radio(
+                    f"Évaluation : {cp['points']}",
+                    ["Non évalué", "Conforme", "Non conforme"],
+                    key=f"status_{cp['checkpoint_id']}"
+                )
+                comment = st.text_area(
+                    f"Commentaires ({cp['points']})",
+                    key=f"comment_{cp['checkpoint_id']}"
+                )
+                photos = st.file_uploader(
+                    f"Ajouter des photos ({cp['points']})", accept_multiple_files=True, key=f"photos_{cp['checkpoint_id']}"
+                )
 
 if st.button("Enregistrer les résultats"):
     updated_results = []
@@ -107,7 +116,7 @@ if st.button("Enregistrer les résultats"):
         "progress": progress
     }).eq("id", st.session_state["inspection_id"]).execute()
 
-    if response.status_code == 204:
-        st.success("Résultats enregistrés et progression mise à jour !")
+    if response.error:
+        st.error(f"Erreur lors de la mise à jour des résultats : {response.error.message}")
     else:
-        st.error("Erreur lors de la mise à jour des résultats.")
+        st.success("Résultats enregistrés et progression mise à jour !")
