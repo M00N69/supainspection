@@ -28,15 +28,15 @@ if login_button:
         try:
             # Rechercher l'utilisateur avec une recherche insensible à la casse
             response = supabase.table("users").select("*").filter("email", "ilike", email).execute()
-            if response.status_code != 200:
-                st.error(f"Erreur lors de la recherche de l'utilisateur : {response.json().get('msg', 'Une erreur inconnue s\'est produite')}")
-            else:
+
+            if response.error:  # Vérifier s'il y a une erreur
+                st.error(f"Erreur lors de la recherche de l'utilisateur : {response.error['message']}")
+            elif response.data:  # Vérifier si des données existent
                 user = response.data
-                if user:
-                    st.session_state["user_id"] = user[0]["id"]
-                    st.success(f"Bienvenue {email} !")
-                else:
-                    st.error("Utilisateur non trouvé.")
+                st.session_state["user_id"] = user[0]["id"]
+                st.success(f"Bienvenue {email} !")
+            else:
+                st.error("Utilisateur non trouvé.")
         except Exception as e:
             st.error(f"Erreur lors de la recherche de l'utilisateur : {e}")
 
@@ -48,9 +48,9 @@ if "user_id" in st.session_state:
     if st.button("Démarrer l'inspection"):
         # Récupérer les checkpoints associés
         response = supabase.table("checkpoints").select("*").eq("name", selected_checklist).execute()
-        if response.status_code != 200:
-            st.error(f"Erreur lors de la récupération des checkpoints : {response.json().get('msg', 'Une erreur inconnue s\'est produite')}")
-        else:
+        if response.error:
+            st.error(f"Erreur lors de la récupération des checkpoints : {response.error['message']}")
+        elif response.data:
             checkpoints = response.data
             if checkpoints:
                 # Initialiser l'inspection
@@ -61,20 +61,22 @@ if "user_id" in st.session_state:
                     "progress": 0
                 }).execute()
 
-                if inspection.status_code != 201:
-                    st.error(f"Erreur lors de l'initialisation de l'inspection : {inspection.json().get('msg', 'Une erreur inconnue s\'est produite')}")
+                if inspection.error:
+                    st.error(f"Erreur lors de l'initialisation de l'inspection : {inspection.error['message']}")
                 else:
                     st.success("Inspection démarrée avec succès !")
                     st.session_state["inspection_id"] = inspection.data[0]["id"]
             else:
                 st.error("Aucun checkpoint trouvé pour cette checklist.")
+        else:
+            st.error("Aucun checkpoint trouvé pour cette checklist.")
 
 if "inspection_id" in st.session_state:
     # Récupérer les résultats actuels de l'inspection
     response = supabase.table("inspections").select("*").eq("id", st.session_state["inspection_id"]).execute()
-    if response.status_code != 200:
-        st.error(f"Erreur lors de la récupération des résultats de l'inspection : {response.json().get('msg', 'Une erreur inconnue s\'est produite')}")
-    else:
+    if response.error:
+        st.error(f"Erreur lors de la récupération des résultats de l'inspection : {response.error['message']}")
+    elif response.data:
         inspection = response.data[0]
         results = inspection["results"]
 
@@ -95,6 +97,8 @@ if "inspection_id" in st.session_state:
                 photos = st.file_uploader(
                     f"Ajouter des photos ({cp['points']})", accept_multiple_files=True, key=f"photos_{cp['checkpoint_id']}"
                 )
+    else:
+        st.error("Aucun résultat d'inspection trouvé.")
 
 if st.button("Enregistrer les résultats"):
     updated_results = []
@@ -116,7 +120,7 @@ if st.button("Enregistrer les résultats"):
         "progress": progress
     }).eq("id", st.session_state["inspection_id"]).execute()
 
-    if response.status_code != 204:
-        st.error(f"Erreur lors de la mise à jour des résultats : {response.json().get('msg', 'Une erreur inconnue s\'est produite')}")
+    if response.error:
+        st.error(f"Erreur lors de la mise à jour des résultats : {response.error['message']}")
     else:
         st.success("Résultats enregistrés et progression mise à jour !")
