@@ -29,18 +29,13 @@ if login_button:
             # Rechercher l'utilisateur avec une recherche insensible à la casse
             response = supabase.table("users").select("*").filter("email", "ilike", email).execute()
 
-            # Vérifier les erreurs dans la réponse
-            if response.error:
-                st.error(f"Erreur lors de la recherche de l'utilisateur : {response.error['message']}")
-            elif response.data:
-                user = response.data
-                if user:
-                    st.session_state["user_id"] = user[0]["id"]
-                    st.success(f"Bienvenue {email} !")
-                else:
-                    st.error("Utilisateur non trouvé.")
+            # Vérifier les données renvoyées
+            if not response.data or len(response.data) == 0:
+                st.error("Utilisateur non trouvé.")
             else:
-                st.error("Erreur inattendue lors de la recherche de l'utilisateur.")
+                user = response.data
+                st.session_state["user_id"] = user[0]["id"]
+                st.success(f"Bienvenue {email} !")
         except Exception as e:
             st.error(f"Erreur lors de la recherche de l'utilisateur : {e}")
 
@@ -54,28 +49,24 @@ if "user_id" in st.session_state:
             # Récupérer les checkpoints associés
             response = supabase.table("checkpoints").select("*").eq("name", selected_checklist).execute()
 
-            if response.error:
-                st.error(f"Erreur lors de la récupération des checkpoints : {response.error['message']}")
-            elif response.data:
-                checkpoints = response.data
-                if checkpoints:
-                    # Initialiser l'inspection
-                    inspection = supabase.table("inspections").insert({
-                        "user_id": st.session_state["user_id"],
-                        "results": [{"checkpoint_id": cp["id"], "status": "Non évalué"} for cp in checkpoints],
-                        "status": "in_progress",
-                        "progress": 0
-                    }).execute()
-
-                    if inspection.error:
-                        st.error(f"Erreur lors de l'initialisation de l'inspection : {inspection.error['message']}")
-                    else:
-                        st.success("Inspection démarrée avec succès !")
-                        st.session_state["inspection_id"] = inspection.data[0]["id"]
-                else:
-                    st.error("Aucun checkpoint trouvé pour cette checklist.")
+            if not response.data or len(response.data) == 0:
+                st.error("Aucun checkpoint trouvé pour cette checklist.")
             else:
-                st.error("Erreur inattendue lors de la récupération des checkpoints.")
+                checkpoints = response.data
+
+                # Initialiser l'inspection
+                inspection = supabase.table("inspections").insert({
+                    "user_id": st.session_state["user_id"],
+                    "results": [{"checkpoint_id": cp["id"], "status": "Non évalué"} for cp in checkpoints],
+                    "status": "in_progress",
+                    "progress": 0
+                }).execute()
+
+                if not inspection.data:
+                    st.error("Erreur lors de l'initialisation de l'inspection.")
+                else:
+                    st.success("Inspection démarrée avec succès !")
+                    st.session_state["inspection_id"] = inspection.data[0]["id"]
         except Exception as e:
             st.error(f"Erreur lors de la récupération des checkpoints : {e}")
 
@@ -84,9 +75,9 @@ if "inspection_id" in st.session_state:
         # Récupérer les résultats actuels de l'inspection
         response = supabase.table("inspections").select("*").eq("id", st.session_state["inspection_id"]).execute()
 
-        if response.error:
-            st.error(f"Erreur lors de la récupération des résultats de l'inspection : {response.error['message']}")
-        elif response.data:
+        if not response.data or len(response.data) == 0:
+            st.error("Erreur lors de la récupération des résultats de l'inspection.")
+        else:
             inspection = response.data[0]
             results = inspection["results"]
 
@@ -107,8 +98,6 @@ if "inspection_id" in st.session_state:
                     photos = st.file_uploader(
                         f"Ajouter des photos ({cp['points']})", accept_multiple_files=True, key=f"photos_{cp['checkpoint_id']}"
                     )
-        else:
-            st.error("Erreur inattendue lors de la récupération des résultats de l'inspection.")
     except Exception as e:
         st.error(f"Erreur lors de la récupération des résultats de l'inspection : {e}")
 
@@ -133,8 +122,8 @@ if st.button("Enregistrer les résultats"):
             "progress": progress
         }).eq("id", st.session_state["inspection_id"]).execute()
 
-        if response.error:
-            st.error(f"Erreur lors de la mise à jour des résultats : {response.error['message']}")
+        if not response.data:
+            st.error("Erreur lors de la mise à jour des résultats.")
         else:
             st.success("Résultats enregistrés et progression mise à jour !")
     except Exception as e:
