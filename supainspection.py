@@ -2,8 +2,8 @@ from supabase import create_client, Client
 import streamlit as st
 
 # Configuration Supabase
-SUPABASE_URL = "https://your-supabase-url.supabase.co"
-SUPABASE_KEY = "your-supabase-key"
+SUPABASE_URL = st.secrets["supabase_url"]
+SUPABASE_KEY = st.secrets["supabase_key"]
 
 # Création du client Supabase
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -101,4 +101,3 @@ if st.button("Enregistrer les résultats"):
         st.success("Résultats enregistrés et progression mise à jour !")
     else:
         st.error("Erreur lors de la mise à jour des résultats.")
-
