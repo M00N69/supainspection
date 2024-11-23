@@ -18,6 +18,9 @@ with st.form("login_form"):
     login_button = st.form_submit_button("Se connecter")
 
 if login_button:
+    # Nettoyer l'email
+    email = email.strip()
+
     # Rechercher l'utilisateur
     response = supabase.table("users").select("*").eq("email", email).execute()
     user = response.data
