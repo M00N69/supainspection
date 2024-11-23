@@ -101,3 +101,4 @@ if st.button("Enregistrer les résultats"):
         st.success("Résultats enregistrés et progression mise à jour !")
     else:
         st.error("Erreur lors de la mise à jour des résultats.")
+
