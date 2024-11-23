@@ -21,15 +21,22 @@ if login_button:
     # Nettoyer l'email
     email = email.strip()
 
-    # Rechercher l'utilisateur
-    response = supabase.table("users").select("*").eq("email", email).execute()
-    user = response.data
-
-    if user:
-        st.session_state["user_id"] = user[0]["id"]
-        st.success(f"Bienvenue {email} !")
+    # Vérifier que l'email est valide
+    if not email:
+        st.error("Veuillez entrer un email valide.")
     else:
-        st.error("Utilisateur non trouvé.")
+        try:
+            # Rechercher l'utilisateur
+            response = supabase.table("users").select("*").eq("email", email).execute()
+            user = response.data
+
+            if user:
+                st.session_state["user_id"] = user[0]["id"]
+                st.success(f"Bienvenue {email} !")
+            else:
+                st.error("Utilisateur non trouvé.")
+        except Exception as e:
+            st.error(f"Erreur lors de la recherche de l'utilisateur : {e}")
 
 if "user_id" in st.session_state:
     # Afficher les checklists disponibles
