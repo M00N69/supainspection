@@ -1,6 +1,2 @@
-streamlit==1.25.0  # Version de Streamlit (vous pouvez ajuster si nécessaire)
-supabase==0.2.5    # Client officiel Supabase pour Python
-requests==2.31.0   # Pour les appels API supplémentaires si besoin
-python-dotenv==1.0.0  # Pour gérer les clés et les configurations sensibles
-pydantic==1.10.9   # Dépendance de supabase-py
-httpx==0.24.1      # Dépendance de supabase-py pour les requêtes HTTP asynchrones
+supabase==1.0.0
+streamlit==1.28.0
