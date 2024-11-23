@@ -27,7 +27,7 @@ if login_button:
     else:
         try:
             # Rechercher l'utilisateur avec une recherche insensible à la casse
-            response = supabase.table("users").select("*").ilike("email", email).execute()
+            response = supabase.table("users").select("*").filter("email", "ilike", f"%{email}%").execute()
             if response.error:
                 st.error(f"Erreur lors de la recherche de l'utilisateur : {response.error.message}")
             else:
