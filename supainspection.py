@@ -27,6 +27,7 @@ if login_button:
         st.success(f"Bienvenue {email} !")
     else:
         st.error("Utilisateur non trouvé.")
+
 if "user_id" in st.session_state:
     # Afficher les checklists disponibles
     checklists = ["CHECKPVNA", "CHECKHYGIENE", "CHECKSECURITE"]
@@ -51,6 +52,7 @@ if "user_id" in st.session_state:
                 st.session_state["inspection_id"] = inspection.data[0]["id"]
         else:
             st.error("Aucun checkpoint trouvé pour cette checklist.")
+
 if "inspection_id" in st.session_state:
     # Récupérer les résultats actuels de l'inspection
     response = supabase.table("inspections").select("*").eq("id", st.session_state["inspection_id"]).execute()
@@ -74,6 +76,7 @@ if "inspection_id" in st.session_state:
             photos = st.file_uploader(
                 f"Ajouter des photos ({cp['points']})", accept_multiple_files=True, key=f"photos_{cp['checkpoint_id']}"
             )
+
 if st.button("Enregistrer les résultats"):
     updated_results = []
     for cp in results:
@@ -98,3 +101,4 @@ if st.button("Enregistrer les résultats"):
         st.success("Résultats enregistrés et progression mise à jour !")
     else:
         st.error("Erreur lors de la mise à jour des résultats.")
+
