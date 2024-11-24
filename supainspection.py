@@ -1,6 +1,8 @@
 from supabase import create_client, Client
 import streamlit as st
 import mimetypes
+import tempfile
+import os
 
 # Configuration Supabase
 SUPABASE_URL = st.secrets["supabase_url"]
@@ -16,20 +18,31 @@ st.title("Application de Gestion d'Inspection")
 def upload_photo(file, inspection_id):
     try:
         bucket_name = "photos"
-        bucket_path = f"inspections/{inspection_id}/{file.name}"
         mime_type, _ = mimetypes.guess_type(file.name)
+
+        # Créer un fichier temporaire pour écrire le contenu du fichier téléversé
+        with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
+            tmp_file.write(file.getbuffer())
+            tmp_file_path = tmp_file.name
+
+        # Chemin dans le bucket
+        bucket_path = f"inspections/{inspection_id}/{file.name}"
 
         # Téléversement de la photo
         response = supabase.storage.from_(bucket_name).upload(
             bucket_path,
-            file,
+            tmp_file_path,  # Utiliser le chemin temporaire
             {"content-type": mime_type}
         )
 
-        # Récupérer l'URL publique
+        # Supprimer le fichier temporaire après téléversement
+        os.unlink(tmp_file_path)
+
+        # Vérifier si une erreur est survenue
         if response.get("error"):
             raise Exception(response["error"]["message"])
-        
+
+        # Récupérer l'URL publique
         public_url = supabase.storage.from_(bucket_name).get_public_url(bucket_path)["publicUrl"]
         return public_url
     except Exception as e:
@@ -173,3 +186,4 @@ if "inspection_id" in st.session_state:
                     st.error(f"Erreur lors de l'enregistrement des résultats : {e}")
     except Exception as e:
         st.error(f"Erreur lors de la récupération des résultats de l'inspection : {e}")
+
