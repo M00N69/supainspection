@@ -20,31 +20,32 @@ def upload_photo(file, inspection_id):
         bucket_name = "photos"
         mime_type, _ = mimetypes.guess_type(file.name)
 
-        # Créer un fichier temporaire pour écrire le contenu du fichier téléversé
+        # Chemin dans le bucket
+        bucket_path = f"inspections/{inspection_id}/{file.name}"
+
+        # Créer un fichier temporaire pour l'upload
         with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
             tmp_file.write(file.getbuffer())
             tmp_file_path = tmp_file.name
 
-        # Chemin dans le bucket
-        bucket_path = f"inspections/{inspection_id}/{file.name}"
-
-        # Téléversement de la photo
+        # Téléverser dans le bucket
         response = supabase.storage.from_(bucket_name).upload(
             bucket_path,
-            tmp_file_path,  # Utiliser le chemin temporaire
+            tmp_file_path,
             {"content-type": mime_type}
         )
 
-        # Supprimer le fichier temporaire après téléversement
+        # Supprimer le fichier temporaire
         os.unlink(tmp_file_path)
 
-        # Vérifier si une erreur est survenue
+        # Vérifier les erreurs
         if response.get("error"):
             raise Exception(response["error"]["message"])
 
         # Récupérer l'URL publique
         public_url = supabase.storage.from_(bucket_name).get_public_url(bucket_path)["publicUrl"]
         return public_url
+
     except Exception as e:
         st.error(f"Erreur lors de l'upload de la photo : {e}")
         return None
