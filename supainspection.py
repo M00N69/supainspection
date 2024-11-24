@@ -6,64 +6,63 @@ import mimetypes
 SUPABASE_URL = st.secrets["supabase_url"]
 SUPABASE_KEY = st.secrets["supabase_key"]
 
-# Création du client Supabase
+# Créer le client Supabase
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# Streamlit Configuration
-st.title("Application d'Inspection")
+# Titre de l'application
+st.title("Application de Gestion d'Inspection")
 
-# Fonction pour uploader une photo dans un bucket Supabase
+# Fonction pour uploader une photo dans Supabase Storage
 def upload_photo(file, inspection_id):
     try:
-        # Définir le chemin du fichier dans le bucket
+        bucket_name = "photos"
         bucket_path = f"inspections/{inspection_id}/{file.name}"
         mime_type, _ = mimetypes.guess_type(file.name)
 
-        # Téléversement dans le bucket Supabase
-        response = supabase.storage.from_("photos").upload(
+        # Téléversement de la photo
+        response = supabase.storage.from_(bucket_name).upload(
             bucket_path,
             file,
             {"content-type": mime_type}
         )
 
+        # Récupérer l'URL publique
         if response.get("error"):
             raise Exception(response["error"]["message"])
-
-        # Obtenir l'URL publique
-        public_url = supabase.storage.from_("photos").get_public_url(bucket_path)["publicUrl"]
+        
+        public_url = supabase.storage.from_(bucket_name).get_public_url(bucket_path)["publicUrl"]
         return public_url
     except Exception as e:
-        st.error(f"Erreur lors de l'upload : {e}")
+        st.error(f"Erreur lors de l'upload de la photo : {e}")
         return None
 
-# Connexion utilisateur
+# Formulaire de connexion
 with st.form("login_form"):
     email = st.text_input("Email")
     password = st.text_input("Mot de passe", type="password")
     login_button = st.form_submit_button("Se connecter")
 
 if login_button:
-    # Nettoyer et vérifier l'email
+    # Nettoyer et valider l'email
     email = email.strip()
     if not email:
         st.error("Veuillez entrer un email valide.")
     else:
         try:
-            # Rechercher l'utilisateur
+            # Rechercher l'utilisateur dans la table `users`
             response = supabase.table("users").select("*").filter("email", "eq", email).execute()
-            user = response.data
-
-            if user:
-                st.session_state["user_id"] = user[0]["id"]
+            if response.data:
+                user = response.data[0]
+                st.session_state["user_id"] = user["id"]
                 st.success(f"Bienvenue {email} !")
             else:
                 st.error("Utilisateur non trouvé.")
         except Exception as e:
             st.error(f"Erreur lors de la recherche de l'utilisateur : {e}")
 
-# Inspection Workflow
+# Afficher les fonctionnalités si l'utilisateur est connecté
 if "user_id" in st.session_state:
-    # Afficher les checklists disponibles
+    # Sélection de la checklist
     checklists = ["CHECKPVNA", "CHECKHYGIENE", "CHECKSECURITE"]
     selected_checklist = st.selectbox("Choisissez un type d'inspection", checklists)
 
@@ -77,7 +76,7 @@ if "user_id" in st.session_state:
             else:
                 checkpoints = response.data
 
-                # Initialiser l'inspection
+                # Initialiser une nouvelle inspection
                 inspection = supabase.table("inspections").insert({
                     "user_id": st.session_state["user_id"],
                     "results": [{"checkpoint_id": cp["id"], "status": "Non évalué"} for cp in checkpoints],
@@ -95,11 +94,11 @@ if "user_id" in st.session_state:
 
 if "inspection_id" in st.session_state:
     try:
-        # Récupérer les résultats de l'inspection actuelle
+        # Récupérer l'inspection en cours
         response = supabase.table("inspections").select("*").filter("id", "eq", st.session_state["inspection_id"]).execute()
 
         if not response.data:
-            st.error("Erreur lors de la récupération des résultats de l'inspection.")
+            st.error("Erreur lors de la récupération de l'inspection.")
         else:
             inspection = response.data[0]
             results = inspection.get("results", [])
@@ -124,7 +123,7 @@ if "inspection_id" in st.session_state:
                         f"Ajouter des photos ({cp['points']})", accept_multiple_files=True, key=f"photos_{cp['checkpoint_id']}"
                     )
 
-                    # Gérer l'upload des photos
+                    # Uploader les photos
                     photo_urls = []
                     if photos:
                         for photo in photos:
@@ -136,7 +135,7 @@ if "inspection_id" in st.session_state:
                         "checkpoint_id": cp["checkpoint_id"],
                         "status": status,
                         "comments": comment,
-                        "photos": photo_urls  # Stocker les URLs des photos
+                        "photos": photo_urls
                     })
 
             # Enregistrer les résultats
