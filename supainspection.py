@@ -29,7 +29,6 @@ if login_button:
             # Rechercher l'utilisateur avec une recherche insensible à la casse
             response = supabase.table("users").select("*").filter("email", "ilike", email).execute()
 
-            # Vérifier les données renvoyées
             if not response.data or len(response.data) == 0:
                 st.error("Utilisateur non trouvé.")
             else:
@@ -46,20 +45,18 @@ if "user_id" in st.session_state:
 
     if st.button("Démarrer l'inspection"):
         try:
-            # Nettoyer la sélection pour éviter les problèmes d'espaces
+            # Clean the selected checklist
             selected_checklist = selected_checklist.strip()
 
-            # Récupérer les checkpoints associés à la checklist sélectionnée
+            # Retrieve checkpoints associated with the selected checklist
             response = supabase.table("checkpoints").select("*").filter("name", "eq", selected_checklist).execute()
 
-            if response.error:
-                st.error(f"Erreur lors de la récupération des checkpoints : {response.error['message']}")
-            elif not response.data or len(response.data) == 0:
-                st.error("Aucun checkpoint trouvé pour cette checklist.")
+            if not response.data:
+                st.error("Aucun checkpoint trouvé pour cette checklist ou une erreur s'est produite.")
             else:
                 checkpoints = response.data
 
-                # Initialiser l'inspection
+                # Initialize the inspection
                 inspection = supabase.table("inspections").insert({
                     "user_id": st.session_state["user_id"],
                     "results": [{"checkpoint_id": cp["id"], "status": "Non évalué"} for cp in checkpoints],
@@ -67,8 +64,8 @@ if "user_id" in st.session_state:
                     "progress": 0
                 }).execute()
 
-                if inspection.error:
-                    st.error(f"Erreur lors de l'initialisation de l'inspection : {inspection.error['message']}")
+                if not inspection.data:
+                    st.error("Erreur lors de l'initialisation de l'inspection.")
                 else:
                     st.success("Inspection démarrée avec succès !")
                     st.session_state["inspection_id"] = inspection.data[0]["id"]
@@ -80,9 +77,7 @@ if "inspection_id" in st.session_state:
         # Récupérer les résultats actuels de l'inspection
         response = supabase.table("inspections").select("*").filter("id", "eq", st.session_state["inspection_id"]).execute()
 
-        if response.error:
-            st.error(f"Erreur lors de la récupération des résultats de l'inspection : {response.error['message']}")
-        elif not response.data or len(response.data) == 0:
+        if not response.data:
             st.error("Erreur lors de la récupération des résultats de l'inspection.")
         else:
             inspection = response.data[0]
@@ -129,8 +124,8 @@ if st.button("Enregistrer les résultats"):
             "progress": progress
         }).filter("id", "eq", st.session_state["inspection_id"]).execute()
 
-        if response.error:
-            st.error(f"Erreur lors de la mise à jour des résultats : {response.error['message']}")
+        if not response.data:
+            st.error("Erreur lors de la mise à jour des résultats.")
         else:
             st.success("Résultats enregistrés et progression mise à jour !")
     except Exception as e:
