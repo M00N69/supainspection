@@ -72,14 +72,26 @@ if "user_id" in st.session_state:
             response = supabase.table("checkpoints").select("*").filter("name", "ilike", selected_checklist).execute()
 
             if not response.data:
-                st.error("Aucun checkpoint trouvé pour cette checklist.")
+                st.error("Aucun point de contrôle trouvé pour cette checklist.")
             else:
                 checkpoints = response.data
 
                 # Initialiser une nouvelle inspection
+                initial_results = [
+                    {
+                        "checkpoint_id": cp["id"],
+                        "zone": cp.get("zone", "Zone Inconnue"),
+                        "points": cp["points"],
+                        "status": "Non évalué",
+                        "comments": "",
+                        "photos": []
+                    }
+                    for cp in checkpoints
+                ]
+
                 inspection = supabase.table("inspections").insert({
                     "user_id": st.session_state["user_id"],
-                    "results": [{"checkpoint_id": cp["id"], "status": "Non évalué"} for cp in checkpoints],
+                    "results": initial_results,
                     "status": "in_progress",
                     "progress": 0
                 }).execute()
@@ -133,6 +145,8 @@ if "inspection_id" in st.session_state:
 
                     updated_results.append({
                         "checkpoint_id": cp["checkpoint_id"],
+                        "zone": cp["zone"],
+                        "points": cp["points"],
                         "status": status,
                         "comments": comment,
                         "photos": photo_urls
@@ -147,7 +161,8 @@ if "inspection_id" in st.session_state:
                     # Mettre à jour l'inspection
                     response = supabase.table("inspections").update({
                         "results": updated_results,
-                        "progress": progress
+                        "progress": progress,
+                        "status": "completed" if progress == 100 else "in_progress"
                     }).filter("id", "eq", st.session_state["inspection_id"]).execute()
 
                     if not response.data:
